@@ -27,3 +27,16 @@ df_with_brand = df.join(df_brand, df["key"] == df_brand["non_brand_key"], "left"
 
 final_df = df_with_brand.join(df_top_parent.select("key", "top_parent"), "key", "left")
 final_df.select("NAME", "key", "top_parent", "brand").show()
+
+
+
+
+
+
+from pyspark.sql.functions import lit
+# Add a new column 'test' with constant value 'test'
+df_with_test = df.withColumn("test", lit("test"))
+
+# Show the updated DataFrame
+df_with_test.show()
+
