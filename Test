@@ -1,0 +1,29 @@
+df = spark.read.table("your_table_name")
+from pyspark.sql.functions import col, when
+
+# Start with key-parent mapping
+df_hierarchy = df.select(col("key").alias("child"), col("parent"))
+
+# Iteratively resolve parent hierarchy
+for i in range(10):  # Adjust depth as needed
+    df_hierarchy = df_hierarchy.join(
+        df.select(col("key").alias("parent_key"), col("parent").alias("grandparent")),
+        df_hierarchy["parent"] == col("parent_key"),
+        how="left"
+    ).select(
+        col("child"),
+        when(col("grandparent").isNull(), col("parent")).otherwise(col("grandparent")).alias("parent")
+    )
+
+# Join back to get top parent
+df_top_parent = df.join(df_hierarchy, df["key"] == df_hierarchy["child"], "left") \
+                  .withColumnRenamed("parent", "top_parent")
+# Keys that are not parents of any other row are leaf nodes
+df_brand = df.select("parent").distinct().withColumnRenamed("parent", "non_brand_key")
+
+df_with_brand = df.join(df_brand, df["key"] == df_brand["non_brand_key"], "left") \
+                  .withColumn("brand", when(col("non_brand_key").isNull(), col("NAME")).otherwise(None)) \
+                  .drop("non_brand_key")
+
+final_df = df_with_brand.join(df_top_parent.select("key", "top_parent"), "key", "left")
+final_df.select("NAME", "key", "top_parent", "brand").show()
